@@ -1,0 +1,14 @@
+{
+  "words": [
+    "Errno",
+    "getpid",
+    "libsdb",
+    "ptrace",
+    "readline",
+    "rustyline",
+    "SIGCONT",
+    "SIGSTOP",
+    "TRACEME",
+    "waitpid"
+  ]
+}
