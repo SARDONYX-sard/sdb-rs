@@ -1,6 +1,7 @@
 {
   "words": [
     "Errno",
+    "execvp",
     "getpid",
     "libsdb",
     "ptrace",
@@ -9,6 +10,7 @@
     "SIGCONT",
     "SIGSTOP",
     "TRACEME",
+    "unistd",
     "waitpid"
   ]
 }
