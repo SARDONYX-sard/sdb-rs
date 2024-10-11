@@ -2,7 +2,10 @@
 use std::{io, path::PathBuf};
 
 /// Cli error
-#[allow(clippy::enum_variant_names)]
+#[allow(
+    clippy::enum_variant_names,
+    reason = "Error types should end with Error for clarity."
+)]
 #[derive(Debug, snafu::Snafu)]
 #[snafu(visibility(pub))]
 pub enum Error {
@@ -19,7 +22,7 @@ pub enum Error {
     ClapError { source: clap::error::Error },
 
     #[snafu(transparent)]
-    ErrNo { source: nix::errno::Errno },
+    SdbError { source: sdb::error::SdbError },
 
     /// Tracing log error
     #[cfg(feature = "tracing")]

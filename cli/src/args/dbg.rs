@@ -31,7 +31,7 @@ mod tests {
                 let expected = DbgArgs {
                     sub_command: SubCommand::Continue,
                 };
-                assert_eq!(args, expected)
+                assert_eq!(args, expected);
             }
             Err(err) => panic!("{err}"),
         };

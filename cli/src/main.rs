@@ -3,6 +3,7 @@ mod error;
 #[cfg(feature = "tracing")]
 mod logger;
 
+use std::fmt::Display;
 use std::process::exit;
 
 use crate::error::Result;
@@ -10,8 +11,9 @@ use args::app::AppArgs;
 use args::dbg::{DbgArgs, SubCommand};
 use clap::Parser;
 use nix::sys::wait::WaitStatus;
+use nix::unistd::Pid;
 use rustyline::{error::ReadlineError, DefaultEditor};
-use sdb::Process;
+use sdb::process::{wait_on_signal, Process};
 
 fn handle_command(process: &mut Process, line: &str) -> Result<()> {
     let mut lines = vec![""]; // HACK: Push exe item as dummy.
@@ -21,15 +23,16 @@ fn handle_command(process: &mut Process, line: &str) -> Result<()> {
     match args.sub_command {
         SubCommand::Continue => {
             process.resume()?;
-            print_stop_reason(process);
+            let status = wait_on_signal(process.pid)?;
+            print_stop_reason(&process.pid, status);
         }
     }
     Ok(())
 }
 
-fn print_stop_reason(process: &Process) {
-    println!("Process {} ", process.pid);
-    match process.state {
+fn print_stop_reason(pid: &Pid, status: WaitStatus) {
+    println!("Process {} ", pid);
+    match status {
         WaitStatus::Exited(_pid, info) => println!("exited with status {info}"),
         WaitStatus::Stopped(_pid, signal) => println!("stopped with signal {signal}"),
         other => println!("{other:?}"),
@@ -53,12 +56,7 @@ fn main_loop(mut process: Process) -> Result<()> {
                     continue;
                 };
             }
-            Err(ReadlineError::Interrupted) => {
-                break;
-            }
-            Err(ReadlineError::Eof) => {
-                break;
-            }
+            Err(ReadlineError::Interrupted | ReadlineError::Eof) => break,
             Err(err) => {
                 println!("Error: {:?}", err);
                 break;
@@ -70,34 +68,23 @@ fn main_loop(mut process: Process) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
+fn main() {
     let args = AppArgs::parse();
 
     if let Some(pid) = args.pid {
-        match Process::attach(pid) {
-            Ok(process) => print_and_exit(main_loop(process)),
-            Err(err) => {
-                eprint!("{err}");
-                exit(-1)
-            }
-        }
+        let process = map_err_exit(Process::attach(pid));
+        map_err_exit(main_loop(process));
     }
 
     if let Some(program_path) = args.program_path {
-        match Process::launch(&program_path) {
-            Ok(process) => print_and_exit(main_loop(process)),
-            Err(err) => {
-                eprint!("{err}");
-                exit(-1)
-            }
-        }
+        let process = map_err_exit(Process::launch(&program_path));
+        map_err_exit(main_loop(process));
     }
-    Ok(())
 }
 
-fn print_and_exit(result: Result<()>) {
+fn map_err_exit<T, Err: Display>(result: Result<T, Err>) -> T {
     match result {
-        Ok(_) => exit(0),
+        Ok(any) => any,
         Err(err) => {
             eprint!("{err}");
             exit(-1)
