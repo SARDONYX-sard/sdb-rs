@@ -3,9 +3,6 @@ mod error;
 #[cfg(feature = "tracing")]
 mod logger;
 
-use std::fmt::Display;
-use std::process::exit;
-
 use crate::error::Result;
 use args::app::AppArgs;
 use args::dbg::{DbgArgs, SubCommand};
@@ -14,6 +11,8 @@ use nix::sys::wait::WaitStatus;
 use nix::unistd::Pid;
 use rustyline::{error::ReadlineError, DefaultEditor};
 use sdb::process::{wait_on_signal, Process};
+use std::fmt::Display;
+use std::process::exit;
 
 fn handle_command(process: &mut Process, line: &str) -> Result<()> {
     let mut lines = vec![""]; // HACK: Push exe item as dummy.
