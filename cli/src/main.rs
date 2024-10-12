@@ -76,7 +76,7 @@ fn main() {
     }
 
     if let Some(program_path) = args.program_path {
-        let process = map_err_exit(Process::launch(&program_path));
+        let process = map_err_exit(Process::launch(&program_path, false));
         map_err_exit(main_loop(process));
     }
 }
@@ -85,7 +85,7 @@ fn map_err_exit<T, Err: Display>(result: Result<T, Err>) -> T {
     match result {
         Ok(any) => any,
         Err(err) => {
-            eprint!("{err}");
+            eprintln!("{err}");
             exit(-1)
         }
     }
