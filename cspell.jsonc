@@ -1,5 +1,7 @@
 {
   "words": [
+    "bincode",
+    "CLOEXEC",
     "Errno",
     "execvp",
     "getpid",

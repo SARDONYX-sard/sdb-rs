@@ -11,7 +11,9 @@
 				"esbenp.prettier-vscode",
 				"christian-kohler.path-intellisense",
 				"streetsidesoftware.code-spell-checker",
-				"fill-labs.dependi"
+				"fill-labs.dependi",
+				"eamodio.gitlens",
+				"mhutchie.git-graph"
 			]
 		}
 	}
