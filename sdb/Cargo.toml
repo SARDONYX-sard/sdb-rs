@@ -10,8 +10,6 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-serde = { version = "1.0.210", features = ["derive"] }
-bincode = "1.3.3"
 snafu = { workspace = true }
 tracing = { workspace = true, optional = true }
 nix = { workspace = true, features = ["signal", "ptrace", "process"] }

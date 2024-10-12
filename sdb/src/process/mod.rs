@@ -1,16 +1,14 @@
 use crate::error::{
-    CouldNotAttachSnafu, CouldNotCreatePipeSnafu, CouldNotResumeSnafu, NullSnafu, Result, SdbError,
+    CouldNotAttachSnafu, CouldNotResumeSnafu, ExecFailedSnafu, Result, SdbError,
     TracingFailedSnafu, WaitpidFailedSnafu,
 };
-use nix::fcntl::OFlag;
 use nix::sys::ptrace;
 use nix::sys::signal::{kill, Signal};
 use nix::sys::wait::{waitpid, WaitStatus};
-use nix::unistd::{execvp, fork, pipe2, ForkResult, Pid};
+use nix::unistd::{execvp, fork, ForkResult, Pid};
 use snafu::ResultExt;
 use std::ffi::CString;
 use std::path::Path;
-use std::process::exit;
 
 /// Waits for a signal from the process with the given `pid`.
 ///
@@ -53,52 +51,29 @@ impl Process {
     /// # Errors
     /// Returns an error if the fork or exec fails, wrapping the underlying errors.
     ///
-    /// # Panics
-    /// Failed write parent pipe fd.
-    ///
     /// # Example
     /// ```no_run
     /// let process = Process::launch(Path::new("/bin/ls"))?;
     /// ```
-    pub fn launch(path: &Path, debug: bool) -> Result<Self> {
-        let (read_fd, write_fd) = pipe2(OFlag::O_CLOEXEC).context(CouldNotCreatePipeSnafu)?;
-
+    pub fn launch(path: &Path) -> Result<Self> {
         let pid = unsafe { fork() }
             .map_err(|err| SdbError::ForkFailed { source: err })
             .and_then(|result| match result {
                 ForkResult::Parent { child } => Ok(child),
                 ForkResult::Child => {
-                    // Allow tracing of branched processes.
-                    if let Err(err) = ptrace::traceme().context(TracingFailedSnafu){
-                        err.write_to_fd(&write_fd)?;
-                        exit(-1);
-                     };
-                    let c_string = CString::new(path.to_string_lossy().to_string()).map_err(|_| NullSnafu.build())?;
-                    if let Err(e) = execvp(c_string.as_c_str(), &[c_string.as_c_str()]) {
-                        let error = SdbError::ExecFailed { source: e };
-                        error.write_to_fd(&write_fd)?;
-                        exit(-1);
-                    };
-                    unreachable!("The forking process will be asked to execute the specified program and will not return here.")
+                    ptrace::traceme().context(TracingFailedSnafu)?; // Allow tracing of branched processes.
+
+                    let c_string = CString::new(path.to_string_lossy().to_string())?;
+                    execvp(c_string.as_c_str(), &[c_string.as_c_str()]).context(ExecFailedSnafu)?;
+
+                    Ok(Pid::from_raw(0))
                 }
             })?;
-
-        drop(write_fd); // When 1 byte is written or the `write` side is closed(drop), the wait for `read` is over.
-        if let Ok(Some(err)) = SdbError::wait_read_from_fd(&read_fd) {
-            let _ = wait_on_signal(pid); // wait child
-            return Err(err);
-        }
 
         Ok(Self {
             pid,
             terminate_on_end: true,
-            state: {
-                if debug {
-                    wait_on_signal(pid)?
-                } else {
-                    WaitStatus::Stopped(pid, Signal::SIGSTOP)
-                }
-            },
+            state: wait_on_signal(pid)?,
         })
     }
 
